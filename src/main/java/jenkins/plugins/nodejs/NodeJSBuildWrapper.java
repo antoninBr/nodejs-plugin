@@ -14,6 +14,7 @@ import org.jenkinsci.lib.configprovider.model.ConfigFileManager;
 import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
 import org.jenkinsci.plugins.configfiles.common.CleanTempFilesAction;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import hudson.AbortException;
@@ -68,9 +69,13 @@ public class NodeJSBuildWrapper extends SimpleBuildWrapper {
     }
 
     private final String nodeJSInstallationName;
-    private final String configId;
+    private String configId;
 
     @DataBoundConstructor
+    public NodeJSBuildWrapper(String nodeJSInstallationName) {
+        this(nodeJSInstallationName, null);
+    }
+
     public NodeJSBuildWrapper(String nodeJSInstallationName, String configId) {
         this.nodeJSInstallationName = Util.fixEmpty(nodeJSInstallationName);
         this.configId = Util.fixEmpty(configId);
@@ -91,6 +96,11 @@ public class NodeJSBuildWrapper extends SimpleBuildWrapper {
 
     public String getConfigId() {
         return configId;
+    }
+
+    @DataBoundSetter
+    public void setConfigId(String configId) {
+        this.configId = Util.fixEmpty(configId);
     }
 
     /*
@@ -114,6 +124,10 @@ public class NodeJSBuildWrapper extends SimpleBuildWrapper {
         }
         ni = ni.forNode(node, listener);
         ni = ni.forEnvironment(initialEnvironment);
+        String exec = ni.getExecutable(launcher);
+        if (exec == null) {
+        	throw new AbortException(Messages.NodeJSBuilders_noExecutableFound(ni.getHome()));
+        }
         ni.buildEnvVars(new EnvVarsAdapter(context));
 
         // TODO remove this workaround on JENKINS-26583
@@ -127,7 +141,7 @@ public class NodeJSBuildWrapper extends SimpleBuildWrapper {
         if (configId != null) {
             ConfigFile cf = new ConfigFile(configId, null, true);
             FilePath configFile = ConfigFileManager.provisionConfigFile(cf, env, build, workspace, listener, new ArrayList<String>());
-            context.env(NodeJSConstants.NPM_USERCONFIG,  configFile.getRemote());
+            context.env(NodeJSConstants.NPM_USERCONFIG, configFile.getRemote());
             build.addAction(new CleanTempFilesAction(configFile.getRemote()));
         }
     }
